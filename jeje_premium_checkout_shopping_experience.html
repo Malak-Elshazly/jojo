@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>jeje — Checkout</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti for order success effect -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        pink: {
+                            50: '#fdf2f8',
+                            100: '#fce7f3',
+                            200: '#fbcfe8',
+                            300: '#f9a8d4',
+                            400: '#f472b6',
+                            500: '#ec4899',
+                            600: '#db2777',
+                            700: '#be185d',
+                            800: '#9d174d',
+                            900: '#831843',
+                            950: '#500724',
+                        },
+                        rose: {
+                            50: '#fff1f2',
+                            100: '#ffe4e6',
+                            200: '#fecdd3',
+                            300: '#fda4af',
+                            400: '#fb7185',
+                            500: '#f43f5e',
+                            600: '#e11d48',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        serif: ['Playfair Display', 'Georgia', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,400&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fdf2f8;
+        }
+
+        .brand-logo {
+            font-family: 'Playfair Display', serif;
+        }
+
+        /* Custom scrollbar for item lists */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #fce7f3;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #f472b6;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #db2777;
+        }
+
+        /* Glassmorphism styling */
+        .pink-glass {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(251, 207, 232, 0.5);
+        }
+
+        .pink-glow {
+            box-shadow: 0 10px 25px -5px rgba(236, 72, 153, 0.25), 0 8px 10px -6px rgba(236, 72, 153, 0.2);
+        }
+
+        /* Custom radio button animations */
+        .radio-custom:checked + label {
+            border-color: #ec4899;
+            background-color: #fdf2f8;
+        }
+        .radio-custom:checked + label .dot {
+            border-color: #ec4899;
+            background-color: #ec4899;
+        }
+
+        /* Toast notification */
+        #toast {
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 antialiased selection:bg-pink-200 selection:text-pink-900">
+
+    <!-- Toast Notification Container -->
+    <div id="toast" class="fixed top-5 right-5 z-50 flex items-center gap-3 bg-white border-l-4 border-pink-500 shadow-xl rounded-r-xl p-4 transform translate-y-[-150%] opacity-0 max-w-md pointer-events-none transition-all duration-300">
+        <div id="toast-icon" class="text-pink-500 text-xl">
+            <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <div>
+            <h4 id="toast-title" class="font-semibold text-slate-900 text-sm">Notification</h4>
+            <p id="toast-message" class="text-xs text-slate-600 mt-0.5">Operation successful.</p>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="min-h-screen flex flex-col lg:flex-row max-w-7xl mx-auto shadow-2xl my-0 lg:my-6 rounded-none lg:rounded-3xl overflow-hidden bg-white">
+        
+        <!-- Left Side: Checkout Form Area -->
+        <div class="flex-1 p-4 sm:p-8 lg:p-12 overflow-y-auto">
+            
+            <!-- Top Header & Brand -->
+            <header class="flex items-center justify-between pb-6 mb-6 border-b border-pink-100">
+                <a href="#" class="group flex items-center gap-2">
+                    <span class="brand-logo text-3xl sm:text-4xl font-bold tracking-tight text-pink-600 transition group-hover:text-pink-700">jeje</span>
+                    <span class="inline-block w-2 h-2 rounded-full bg-pink-500 animate-pulse"></span>
+                </a>
+                
+                <div class="flex items-center gap-4 text-xs sm:text-sm text-slate-500">
+                    <span class="hidden sm:inline-flex items-center gap-1.5 bg-pink-50 text-pink-700 px-3 py-1.5 rounded-full font-medium border border-pink-200">
+                        <i class="fa-solid fa-bag-shopping text-pink-500"></i>
+                        EGP (L.E)
+                    </span>
+                    <!-- Mobile Order Summary Toggle Button -->
+                    <button id="mobile-summary-toggle" onclick="toggleMobileSummary()" class="lg:hidden flex items-center gap-2 text-pink-600 font-medium bg-pink-50 px-3 py-1.5 rounded-lg border border-pink-200">
+                        <i class="fa-solid fa-cart-shopping"></i>
+                        <span id="mobile-toggle-text">Show Order Summary</span>
+                        <i id="mobile-toggle-arrow" class="fa-solid fa-chevron-down text-xs transition-transform duration-200"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Mobile Summary Accordion Dropdown -->
+            <div id="mobile-summary-dropdown" class="hidden lg:hidden mb-6 p-4 bg-pink-50/70 rounded-2xl border border-pink-200 transition-all">
+                <div id="mobile-cart-items-container" class="space-y-3 mb-4 max-h-60 overflow-y-auto">
+                    <!-- Dynamic JS Injection -->
+                </div>
+                
+                <!-- Discount input mobile -->
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="mobile-promo-input" placeholder="Discount code (e.g. JEJE10)" class="flex-1 px-3 py-2 text-xs border border-pink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400 bg-white">
+                    <button onclick="applyPromo('mobile')" class="px-4 py-2 bg-pink-600 text-white font-medium text-xs rounded-lg hover:bg-pink-700 transition shadow-sm">Apply</button>
+                </div>
+
+                <div class="space-y-1.5 text-xs text-slate-600 pt-3 border-t border-pink-200/60">
+                    <div class="flex justify-between"><span>Subtotal</span><span id="mobile-subtotal" class="font-medium text-slate-800">EGP 0</span></div>
+                    <div class="flex justify-between text-emerald-600"><span id="mobile-discount-label">Discount</span><span id="mobile-discount">EGP 0</span></div>
+                    <div class="flex justify-between"><span>Shipping</span><span id="mobile-shipping" class="font-medium text-slate-800">EGP 50</span></div>
+                    <div class="flex justify-between font-bold text-sm text-pink-900 pt-2 border-t border-pink-200">
+                        <span>Total</span>
+                        <span id="mobile-total" class="text-pink-600">EGP 0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Breadcrumb Steps -->
+            <nav class="flex items-center text-xs sm:text-sm font-medium text-slate-400 mb-8 overflow-x-auto pb-2">
+                <a href="#" class="text-pink-600 hover:text-pink-700 transition flex items-center gap-1.5">
+                    <span>Cart</span>
+                    <i class="fa-solid fa-chevron-right text-[10px] text-slate-300"></i>
+                </a>
+                <span class="text-pink-600 ml-2 mr-2 font-semibold">Information</span>
+                <i class="fa-solid fa-chevron-right text-[10px] text-slate-300 mr-2"></i>
+                <span class="hover:text-slate-600 transition">Shipping</span>
+                <i class="fa-solid fa-chevron-right text-[10px] text-slate-300 mx-2"></i>
+                <span class="hover:text-slate-600 transition">Payment</span>
+            </nav>
+
+            <!-- Express Checkout Section -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Express Checkout</h2>
+                    <span class="text-xs text-pink-500 bg-pink-50 px-2.5 py-0.5 rounded-full font-medium">Instant & Secure</span>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <button type="button" onclick="quickPay('Apple Pay')" class="flex items-center justify-center gap-2 py-3 px-4 bg-slate-900 hover:bg-black text-white rounded-xl transition duration-200 shadow-sm font-medium text-sm group">
+                        <i class="fa-brands fa-apple text-lg"></i>
+                        <span>Pay</span>
+                    </button>
+                    <button type="button" onclick="quickPay('Instapay')" class="flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl transition duration-200 shadow-sm font-medium text-sm">
+                        <i class="fa-solid fa-bolt"></i>
+                        <span>Instapay</span>
+                    </button>
+                </div>
+                <div class="relative my-6">
+                    <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-pink-100"></div></div>
+                    <div class="relative flex justify-center text-xs uppercase"><span class="bg-white px-4 text-slate-400 font-medium">Or continue below</span></div>
+                </div>
+            </div>
+
+            <!-- Checkout Form -->
+            <form id="checkout-form" onsubmit="handleCheckout(event)" class="space-y-6">
+                
+                <!-- Contact Info -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-sm font-semibold text-slate-700">Contact Information</label>
+                        <span class="text-xs text-slate-400">Already have an account? <a href="#" class="text-pink-600 hover:underline">Log in</a></span>
+                    </div>
+                    <div class="relative">
+                        <input type="text" id="contact" required placeholder="Email or Mobile Phone Number" 
+                            class="w-full px-4 py-3 rounded-xl border border-pink-200 focus:border-pink-500 focus:ring-2 focus:ring-pink-200 focus:outline-none transition text-sm bg-slate-50/30">
+                        <i class="fa-regular fa-envelope absolute right-4 top-3.5 text-slate-400"></i>
+                    </div>
+                    <div class="mt-3 flex items-center gap-2">
+                        <input type="checkbox" id="newsletter" checked class="w-4 h-4 text-pink-600 accent-pink-500 rounded border-pink-300 focus:ring-pink-400">
+                        <label for="newsletter" class="text-xs text-slate-600 cursor-pointer">Email me with exclusive <span class="font-semibold text-pink-600">jeje</span> offers and styling news</label>
+                    </div>
+                </div>
+
+                <!-- Shipping Address -->
+                <div>
+                    <h3 class="text-sm font-semibold text-slate-700 mb-3">Shipping Address</h3>
+                    
+                    <div class="space-y-3">
+                        <!-- Country -->
+                        <div>
+                            <select id="country" class="w-full px-4 py-3 rounded-xl border border-pink-200 focus:border-pink-500 focus:ring-2 focus:ring-pink-200 focus:outline-none transition text-sm bg-slate-50/30">
+                                <option value="EG">Egypt (مصر)</option>
+                                <option value="AE">United Arab Emirates (الإمارات)</option>
+                                <option value="SA">Saudi Arabia (السعودية)</option>
+                            </select>
+                        </div>
+
+                        <!-- First & Last Name -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <input type="text" id="first-name" required placeholder="First Name" class="px-4 py-3 rounded-xl border border-pink-200 focus:border-pink-500 focus:ring-2 focus:ring-pink-200 focus:outline-none transition text-sm bg-slate-50/30">
+                            <input type="text" id="last-name" required placeholder="Last Name" class="px-4 py-3 rounded-xl border border-pink-200 focus:border-pink-500 focus:ring-2 focus:ring-pink-200 focus:outline-none transition text-sm bg-slate-50/30">
+                        </div>
+
+                        <!-- Address -->
+                        <input type="text" id="address" required placeholder="Street address, building, floor, apt #" class="w-full px-4 py-3 rounded-xl border border-pink-200 focus:border-pink-500 focus:ring-2 focus:ring-pink-200 focus:outline-none transition text-sm bg-slate-50/30">
+
+                        <!-- Governorate / City -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <select id="governorate" onchange="updateShippingCost()" class="w-full px-4 py-3 rounded-xl border border-pink-200 focus:border-pink-500 focus:ring-2 focus:ring-pink-200 focus:outline-none transition text-sm bg-slate-50/30">
+                                    <option value="cairo">Cairo (القاهرة)</option>
+                                    <option value="giza">Giza (الجيزة)</option>
+                                    <option value="alexandria">Alexandria (الإسكندرية)</option>
+                                    <option value="mansoura">Mansoura (المنصورة)</option>
+                                    <option value="red_sea">Hurghada / Red Sea</option>
+                                    <option value="other">Other Governorates</option>
+                                </select>
+                            </div>
+                            <input type="text" id="city" required placeholder="City / Area (e.g. New Cairo)" class="px-4 py-3 rounded-xl border border-pink-200 focus:border-pink-500 focus:ring-2 focus:ring-pink-200 focus:outline-none transition text-sm bg-slate-50/30">
+                        </div>
+
+                        <!-- Phone -->
+                        <div class="relative">
+                            <input type="tel" id="phone" required placeholder="Mobile Phone (+20 1xx xxx xxxx)" class="w-full px-4 py-3 rounded-xl border border-pink-200 focus:border-pink-500 focus:ring-2 focus:ring-pink-200 focus:outline-none transition text-sm bg-slate-50/30">
+                            <i class="fa-solid fa-phone absolute right-4 top-3.5 text-slate-400"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Shipping Method Selection -->
+                <div>
+                    <h3 class="text-sm font-semibold text-slate-700 mb-3">Shipping Method</h3>
+                    <div class="space-y-2">
+                        <div class="relative">
+                            <input type="radio" id="ship-standard" name="shipping_method" value="standard" checked onchange="updateShippingCost()" class="radio-custom hidden">
+                            <label for="ship-standard" class="flex items-center justify-between p-4 border border-pink-200 rounded-xl cursor-pointer transition hover:border-pink-300">
+                                <div class="flex items-center gap-3">
+                                    <span class="dot w-4 h-4 rounded-full border border-pink-300 flex items-center justify-center"></span>
+                                    <div>
+                                        <p class="text-sm font-semibold text-slate-800">Standard Delivery</p>
+                                        <p class="text-xs text-slate-500">2-4 Business Days</p>
+                                    </div>
+                                </div>
+                                <span id="standard-cost-display" class="text-sm font-medium text-pink-600">EGP 50</span>
+                            </label>
+                        </div>
+
+                        <div class="relative">
+                            <input type="radio" id="ship-express" name="shipping_method" value="express" onchange="updateShippingCost()" class="radio-custom hidden">
+                            <label for="ship-express" class="flex items-center justify-between p-4 border border-pink-200 rounded-xl cursor-pointer transition hover:border-pink-300">
+                                <div class="flex items-center gap-3">
+                                    <span class="dot w-4 h-4 rounded-full border border-pink-300 flex items-center justify-center"></span>
+                                    <div>
+                                        <p class="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                                            Express Same-Day Delivery
+                                            <span class="text-[10px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full font-bold">FAST</span>
+                                        </p>
+                                        <p class="text-xs text-slate-500">Delivered within 24 Hours</p>
+                                    </div>
+                                </div>
+                                <span id="express-cost-display" class="text-sm font-medium text-pink-600">EGP 100</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment Methods -->
+                <div>
+                    <h3 class="text-sm font-semibold text-slate-700 mb-1">Payment</h3>
+                    <p class="text-xs text-slate-400 mb-3">All transactions are encrypted and secure.</p>
+                    
+                    <div class="space-y-3">
+                        <!-- Credit Card Option -->
+                        <div class="border border-pink-200 rounded-xl overflow-hidden bg-white">
+                            <div class="p-4 bg-pink-50/50 flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <input type="radio" id="pay-card" name="payment_method" value="card" checked onchange="togglePaymentSection('card')" class="accent-pink-500">
+                                    <label for="pay-card" class="text-sm font-medium text-slate-800 cursor-pointer">Credit or Debit Card</label>
+                                </div>
+                                <div class="flex gap-1.5 text-slate-600">
+                                    <i class="fa-brands fa-cc-visa text-xl text-blue-800"></i>
+                                    <i class="fa-brands fa-cc-mastercard text-xl text-red-500"></i>
+                                </div>
+                            </div>
+                            <!-- Card Inputs Form Section -->
+                            <div id="card-details-form" class="p-4 space-y-3 border-t border-pink-100">
+                                <div class="relative">
+                                    <input type="text" id="card-number" placeholder="Card Number (0000 0000 0000 0000)" maxlength="19" onkeyup="formatCardNumber(this)" class="w-full px-4 py-2.5 rounded-lg border border-pink-200 focus:border-pink-500 focus:ring-1 focus:ring-pink-500 focus:outline-none text-xs">
+                                    <i class="fa-solid fa-lock absolute right-3 top-3 text-slate-400 text-xs"></i>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <input type="text" id="card-expiry" placeholder="MM / YY" maxlength="5" class="px-4 py-2.5 rounded-lg border border-pink-200 focus:border-pink-500 focus:ring-1 focus:ring-pink-500 focus:outline-none text-xs">
+                                    <input type="text" id="card-cvv" placeholder="CVV / CVC" maxlength="4" class="px-4 py-2.5 rounded-lg border border-pink-200 focus:border-pink-500 focus:ring-1 focus:ring-pink-500 focus:outline-none text-xs">
+                                </div>
+                                <input type="text" id="card-holder" placeholder="Cardholder Name" class="w-full px-4 py-2.5 rounded-lg border border-pink-200 focus:border-pink-500 focus:ring-1 focus:ring-pink-500 focus:outline-none text-xs">
+                            </div>
+                        </div>
+
+                        <!-- Cash on Delivery Option -->
+                        <div class="border border-pink-200 rounded-xl overflow-hidden bg-white">
+                            <div class="p-4 flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <input type="radio" id="pay-cod" name="payment_method" value="cod" onchange="togglePaymentSection('cod')" class="accent-pink-500">
+                                    <label for="pay-cod" class="text-sm font-medium text-slate-800 cursor-pointer">Cash on Delivery (COD) / الدفع عند الاستلام</label>
+                                </div>
+                                <i class="fa-solid fa-money-bill-wave text-pink-500"></i>
+                            </div>
+                            <div id="cod-info-msg" class="hidden p-4 bg-pink-50/60 border-t border-pink-100 text-xs text-pink-800">
+                                Pay easily in cash upon receiving your order at your doorstep.
+                            </div>
+                        </div>
+
+                        <!-- Mobile Wallet / Vodafone Cash -->
+                        <div class="border border-pink-200 rounded-xl overflow-hidden bg-white">
+                            <div class="p-4 flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <input type="radio" id="pay-wallet" name="payment_method" value="wallet" onchange="togglePaymentSection('wallet')" class="accent-pink-500">
+                                    <label for="pay-wallet" class="text-sm font-medium text-slate-800 cursor-pointer">Vodafone Cash / Digital Wallet</label>
+                                </div>
+                                <i class="fa-solid fa-mobile-screen-button text-red-500"></i>
+                            </div>
+                            <div id="wallet-info-msg" class="hidden p-4 bg-pink-50/60 border-t border-pink-100 text-xs text-slate-700 space-y-2">
+                                <p>Transfer total to wallet number: <span class="font-bold text-pink-700">0100 000 9999</span></p>
+                                <input type="text" placeholder="Enter your transfer phone number" class="w-full px-3 py-2 bg-white rounded-lg border border-pink-200 text-xs focus:outline-none focus:ring-1 focus:ring-pink-400">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="pt-4">
+                    <button type="submit" id="submit-btn" class="w-full bg-gradient-to-r from-pink-500 via-pink-600 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold py-4 rounded-xl shadow-lg hover:shadow-pink-300/50 transition-all transform active:scale-[0.99] flex items-center justify-center gap-2 group">
+                        <i class="fa-solid fa-bag-shopping group-hover:bounce"></i>
+                        <span>Complete Order</span>
+                        <span id="btn-total-price" class="text-pink-100 font-normal border-l border-pink-400 pl-2 ml-1">EGP 0</span>
+                    </button>
+                    <p class="text-center text-xs text-slate-400 mt-3 flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-shield-halved text-emerald-500"></i>
+                        Guaranteed 256-Bit SSL Encrypted Checkout
+                    </p>
+                </div>
+            </form>
+
+            <!-- Footer links -->
+            <footer class="mt-12 pt-6 border-t border-pink-100 flex flex-wrap justify-center gap-6 text-xs text-slate-400">
+                <a href="#" class="hover:text-pink-600 transition">Refund policy</a>
+                <a href="#" class="hover:text-pink-600 transition">Shipping policy</a>
+                <a href="#" class="hover:text-pink-600 transition">Privacy policy</a>
+                <a href="#" class="hover:text-pink-600 transition">Terms of service</a>
+            </footer>
+        </div>
+
+        <!-- Right Side: Order Summary (Desktop Sticky Sidebar) -->
+        <div class="hidden lg:block w-[420px] bg-pink-50/60 p-8 border-l border-pink-100 flex flex-col justify-between">
+            <div>
+                <!-- Header -->
+                <div class="flex items-center justify-between mb-6 pb-4 border-b border-pink-200/60">
+                    <h2 class="text-lg font-bold text-slate-800 tracking-tight flex items-center gap-2">
+                        <span>Order Summary</span>
+                        <span id="cart-item-count-badge" class="bg-pink-200 text-pink-800 text-xs px-2.5 py-0.5 rounded-full font-bold">2 items</span>
+                    </h2>
+                </div>
+
+                <!-- Item List -->
+                <div id="desktop-cart-items-container" class="space-y-4 max-h-[380px] overflow-y-auto pr-1 mb-6">
+                    <!-- Dynamic Cart Items rendering -->
+                </div>
+
+                <!-- Add Items Widget Toggle -->
+                <div class="mb-6">
+                    <button onclick="toggleQuickCatalog()" class="w-full py-2.5 px-3 bg-white border border-pink-200 text-pink-700 rounded-xl text-xs font-semibold hover:bg-pink-100/50 transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-plus-circle text-pink-500"></i>
+                        <span>Add more items to cart</span>
+                    </button>
+                    
+                    <!-- Quick catalog expandable -->
+                    <div id="quick-catalog" class="hidden mt-3 p-3 bg-white rounded-xl border border-pink-200 shadow-sm space-y-2">
+                        <p class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Recommended for you</p>
+                        <div id="catalog-items-list" class="space-y-2">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Promo Code -->
+                <div class="flex gap-2 mb-6">
+                    <div class="relative flex-1">
+                        <input type="text" id="desktop-promo-input" placeholder="Discount code (try JEJE10)" class="w-full px-3.5 py-2.5 text-xs border border-pink-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400 bg-white shadow-sm uppercase placeholder:normal-case">
+                        <i class="fa-solid fa-tag absolute right-3 top-3 text-pink-300 text-xs"></i>
+                    </div>
+                    <button onclick="applyPromo('desktop')" class="px-5 py-2.5 bg-pink-600 hover:bg-pink-700 text-white font-medium text-xs rounded-xl transition shadow-sm active:scale-95">Apply</button>
+                </div>
+
+                <!-- Price Breakdown -->
+                <div class="space-y-2.5 text-xs text-slate-600 pt-4 border-t border-pink-200/60">
+                    <div class="flex justify-between">
+                        <span>Subtotal</span>
+                        <span id="desktop-subtotal" class="font-semibold text-slate-800">EGP 0</span>
+                    </div>
+                    <div id="desktop-discount-row" class="flex justify-between text-emerald-600 hidden">
+                        <span id="desktop-discount-label">Discount (10%)</span>
+                        <span id="desktop-discount">-EGP 0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Shipping estimate</span>
+                        <span id="desktop-shipping" class="font-semibold text-slate-800">EGP 50</span>
+                    </div>
+                    <div class="flex justify-between text-[11px] text-slate-400">
+                        <span>Estimated Taxes</span>
+                        <span>Included</span>
+                    </div>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-pink-200 flex justify-between items-baseline">
+                    <div>
+                        <span class="text-base font-bold text-slate-800">Total</span>
+                        <span class="text-[11px] text-slate-400 block">Includes VAT</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs text-slate-400 mr-1">EGP</span>
+                        <span id="desktop-total" class="text-2xl font-bold text-pink-600">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chic Trust Badges -->
+            <div class="mt-8 pt-6 border-t border-pink-200/50 flex justify-around text-center text-[11px] text-slate-500">
+                <div>
+                    <i class="fa-solid fa-truck-fast text-pink-500 text-base mb-1 block"></i>
+                    <span>Fast Delivery</span>
+                </div>
+                <div>
+                    <i class="fa-solid fa-rotate-left text-pink-500 text-base mb-1 block"></i>
+                    <span>Easy Returns</span>
+                </div>
+                <div>
+                    <i class="fa-solid fa-gem text-pink-500 text-base mb-1 block"></i>
+                    <span>Authentic Luxury</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Success Modal -->
+    <div id="success-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full text-center shadow-2xl border border-pink-100 transform scale-90 transition-transform duration-300" id="modal-card">
+            <div class="w-16 h-16 bg-pink-100 text-pink-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 animate-bounce">
+                <i class="fa-solid fa-heart"></i>
+            </div>
+            <h2 class="brand-logo text-3xl font-bold text-pink-600 mb-1">jeje</h2>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">Thank You for Your Order!</h3>
+            <p class="text-xs text-slate-500 mb-6">Order <span id="order-id" class="font-mono text-pink-600 font-bold">#JEJE-98231</span> confirmed. We've sent a detailed confirmation to your contact details.</p>
+            
+            <div class="bg-pink-50/70 p-4 rounded-2xl text-left text-xs space-y-2 mb-6 border border-pink-100">
+                <div class="flex justify-between border-b border-pink-100 pb-2">
+                    <span class="text-slate-500">Customer Name:</span>
+                    <span id="summary-name" class="font-medium text-slate-800">--</span>
+                </div>
+                <div class="flex justify-between border-b border-pink-100 pb-2">
+                    <span class="text-slate-500">Shipping To:</span>
+                    <span id="summary-address" class="font-medium text-slate-800">--</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500">Amount Paid:</span>
+                    <span id="summary-total" class="font-bold text-pink-600">--</span>
+                </div>
+            </div>
+
+            <button onclick="resetCheckout()" class="w-full py-3.5 bg-pink-600 hover:bg-pink-700 text-white font-semibold text-sm rounded-xl shadow-lg shadow-pink-200 transition">
+                Continue Shopping with jeje
+            </button>
+        </div>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // State Management
+        let cartItems = [
+            {
+                id: 1,
+                name: "Rose Blush Silk Dress",
+                variant: "Soft Pink / M",
+                price: 1450,
+                qty: 1,
+                image: "https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?auto=format&fit=crop&w=200&q=80"
+            },
+            {
+                id: 2,
+                name: "Blush Velvet Handbag",
+                variant: "Rose Gold Accent",
+                price: 980,
+                qty: 1,
+                image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=200&q=80"
+            }
+        ];
+
+        const extraCatalog = [
+            {
+                id: 3,
+                name: "Pink Pearl Drop Earrings",
+                variant: "One Size",
+                price: 350,
+                image: "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=200&q=80"
+            },
+            {
+                id: 4,
+                name: "Glossy Rose Lip Serum",
+                variant: "Shimmer Pink",
+                price: 240,
+                image: "https://images.unsplash.com/photo-1586495777744-4413f21062fa?auto=format&fit=crop&w=200&q=80"
+            }
+        ];
+
+        let appliedDiscount = 0; // percentage e.g. 0.10
+        let shippingCost = 50;
+
+        // Initialize App on DOM Load
+        window.addEventListener('DOMContentLoaded', () => {
+            renderCart();
+            renderCatalog();
+            updateShippingCost();
+        });
+
+        function renderCart() {
+            const desktopContainer = document.getElementById('desktop-cart-items-container');
+            const mobileContainer = document.getElementById('mobile-cart-items-container');
+            
+            if (cartItems.length === 0) {
+                const emptyHTML = `<p class="text-center text-xs text-slate-400 py-6">Your shopping bag is empty.</p>`;
+                desktopContainer.innerHTML = emptyHTML;
+                mobileContainer.innerHTML = emptyHTML;
+            } else {
+                const cartHTML = cartItems.map(item => `
+                    <div class="flex items-center gap-3 bg-white p-2.5 rounded-2xl border border-pink-100 shadow-sm transition hover:border-pink-200">
+                        <div class="relative w-14 h-14 rounded-xl overflow-hidden bg-pink-100 flex-shrink-0">
+                            <img src="${item.image}" alt="${item.name}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/100x100/fce7f3/db2777?text=jeje'">
+                            <span class="absolute top-0 right-0 bg-pink-600 text-white text-[10px] font-bold w-4 h-4 rounded-bl-lg flex items-center justify-center">${item.qty}</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="text-xs font-bold text-slate-800 truncate">${item.name}</h4>
+                            <p class="text-[11px] text-slate-400 mb-1">${item.variant}</p>
+                            <div class="flex items-center gap-2">
+                                <button onclick="changeQty(${item.id}, -1)" class="w-5 h-5 rounded-md bg-pink-50 hover:bg-pink-200 text-pink-700 flex items-center justify-center text-xs transition">-</button>
+                                <span class="text-xs font-semibold text-slate-700">${item.qty}</span>
+                                <button onclick="changeQty(${item.id}, 1)" class="w-5 h-5 rounded-md bg-pink-50 hover:bg-pink-200 text-pink-700 flex items-center justify-center text-xs transition">+</button>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs font-bold text-pink-700">EGP ${(item.price * item.qty).toLocaleString()}</span>
+                            <button onclick="removeItem(${item.id})" class="block text-[10px] text-slate-300 hover:text-red-500 mt-1 transition ml-auto">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+
+                desktopContainer.innerHTML = cartHTML;
+                mobileContainer.innerHTML = cartHTML;
+            }
+
+            // Update item count badges
+            const totalCount = cartItems.reduce((acc, curr) => acc + curr.qty, 0);
+            document.getElementById('cart-item-count-badge').innerText = `${totalCount} item${totalCount !== 1 ? 's' : ''}`;
+
+            calculateTotals();
+        }
+
+        function renderCatalog() {
+            const list = document.getElementById('catalog-items-list');
+            list.innerHTML = extraCatalog.map(item => `
+                <div class="flex items-center justify-between p-2 hover:bg-pink-50/50 rounded-lg transition">
+                    <div class="flex items-center gap-2">
+                        <img src="${item.image}" class="w-8 h-8 rounded-md object-cover" onerror="this.src='https://placehold.co/50x50/fce7f3/db2777?text=jeje'">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-800">${item.name}</p>
+                            <p class="text-[10px] text-pink-600">EGP ${item.price}</p>
+                        </div>
+                    </div>
+                    <button onclick="addCatalogItem(${item.id})" class="px-2.5 py-1 bg-pink-100 hover:bg-pink-600 hover:text-white text-pink-700 text-[11px] font-bold rounded-md transition">
+                        Add
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function changeQty(id, delta) {
+            const item = cartItems.find(i => i.id === id);
+            if (item) {
+                item.qty += delta;
+                if (item.qty <= 0) {
+                    cartItems = cartItems.filter(i => i.id !== id);
+                    showToast('Item Removed', 'Item was removed from your bag.');
+                }
+                renderCart();
+            }
+        }
+
+        function removeItem(id) {
+            cartItems = cartItems.filter(i => i.id !== id);
+            showToast('Item Removed', 'Item was removed from your bag.');
+            renderCart();
+        }
+
+        function addCatalogItem(id) {
+            const catalogItem = extraCatalog.find(i => i.id === id);
+            if (!catalogItem) return;
+
+            const existing = cartItems.find(i => i.id === id);
+            if (existing) {
+                existing.qty += 1;
+            } else {
+                cartItems.push({ ...catalogItem, qty: 1 });
+            }
+            showToast('Added to Cart', `${catalogItem.name} added!`);
+            renderCart();
+        }
+
+        function toggleQuickCatalog() {
+            const catalog = document.getElementById('quick-catalog');
+            catalog.classList.toggle('hidden');
+        }
+
+        function updateShippingCost() {
+            const governorate = document.getElementById('governorate').value;
+            const isExpress = document.getElementById('ship-express').checked;
+
+            if (governorate === 'cairo' || governorate === 'giza') {
+                shippingCost = isExpress ? 100 : 50;
+            } else if (governorate === 'alexandria') {
+                shippingCost = isExpress ? 120 : 65;
+            } else {
+                shippingCost = isExpress ? 150 : 80;
+            }
+
+            document.getElementById('standard-cost-display').innerText = `EGP ${governorate === 'cairo' || governorate === 'giza' ? 50 : 65}`;
+            document.getElementById('express-cost-display').innerText = `EGP ${governorate === 'cairo' || governorate === 'giza' ? 100 : 120}`;
+
+            calculateTotals();
+        }
+
+        function applyPromo(type) {
+            const input = document.getElementById(type === 'mobile' ? 'mobile-promo-input' : 'desktop-promo-input');
+            const code = input.value.trim().toUpperCase();
+
+            if (code === 'JEJE10') {
+                appliedDiscount = 0.10;
+                showToast('Promo Code Applied!', 'You saved 10% on your order with JEJE10');
+            } else if (code === 'JEJE20') {
+                appliedDiscount = 0.20;
+                showToast('VIP Code Applied!', 'You received 20% off with JEJE20');
+            } else if (code === '') {
+                showToast('Notice', 'Please enter a valid coupon code.', 'info');
+            } else {
+                showToast('Invalid Code', 'The code you entered is not valid.', 'error');
+                appliedDiscount = 0;
+            }
+            calculateTotals();
+        }
+
+        function calculateTotals() {
+            const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            const discountAmount = subtotal * appliedDiscount;
+            const grandTotal = Math.max(0, subtotal - discountAmount + shippingCost);
+
+            // Update Desktop UI
+            document.getElementById('desktop-subtotal').innerText = `EGP ${subtotal.toLocaleString()}`;
+            document.getElementById('desktop-shipping').innerText = `EGP ${shippingCost}`;
+            document.getElementById('desktop-total').innerText = grandTotal.toLocaleString();
+
+            const discountRow = document.getElementById('desktop-discount-row');
+            if (appliedDiscount > 0) {
+                discountRow.classList.remove('hidden');
+                document.getElementById('desktop-discount').innerText = `-EGP ${discountAmount.toLocaleString()}`;
+                document.getElementById('desktop-discount-label').innerText = `Discount (${appliedDiscount * 100}%)`;
+            } else {
+                discountRow.classList.add('hidden');
+            }
+
+            // Update Mobile UI
+            document.getElementById('mobile-subtotal').innerText = `EGP ${subtotal.toLocaleString()}`;
+            document.getElementById('mobile-shipping').innerText = `EGP ${shippingCost}`;
+            document.getElementById('mobile-discount').innerText = `-EGP ${discountAmount.toLocaleString()}`;
+            document.getElementById('mobile-total').innerText = `EGP ${grandTotal.toLocaleString()}`;
+
+            // Update submit button total
+            document.getElementById('btn-total-price').innerText = `EGP ${grandTotal.toLocaleString()}`;
+        }
+
+        // Mobile summary accordion toggle
+        function toggleMobileSummary() {
+            const dropdown = document.getElementById('mobile-summary-dropdown');
+            const text = document.getElementById('mobile-toggle-text');
+            const arrow = document.getElementById('mobile-toggle-arrow');
+
+            dropdown.classList.toggle('hidden');
+            if (dropdown.classList.contains('hidden')) {
+                text.innerText = 'Show Order Summary';
+                arrow.classList.remove('rotate-180');
+            } else {
+                text.innerText = 'Hide Order Summary';
+                arrow.classList.add('rotate-180');
+            }
+        }
+
+        // Toggle payment fields visual UI
+        function togglePaymentSection(type) {
+            document.getElementById('card-details-form').classList.toggle('hidden', type !== 'card');
+            document.getElementById('cod-info-msg').classList.toggle('hidden', type !== 'cod');
+            document.getElementById('wallet-info-msg').classList.toggle('hidden', type !== 'wallet');
+        }
+
+        // Card number formatting
+        function formatCardNumber(input) {
+            let value = input.value.replace(/\D/g, '');
+            let formatted = '';
+            for (let i = 0; i < value.length; i++) {
+                if (i > 0 && i % 4 === 0) formatted += ' ';
+                formatted += value[i];
+            }
+            input.value = formatted;
+        }
+
+        // Quick Pay Shortcuts
+        function quickPay(provider) {
+            showToast('Express Checkout', `Redirecting to secure ${provider} portal...`);
+            setTimeout(() => {
+                triggerSuccessModal(`${provider} Express User`);
+            }, 1200);
+        }
+
+        // Toast notifications logic
+        function showToast(title, message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastTitle = document.getElementById('toast-title');
+            const toastMsg = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+
+            toastTitle.innerText = title;
+            toastMsg.innerText = message;
+
+            if (type === 'error') {
+                toastIcon.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-rose-500"></i>`;
+                toast.classList.replace('border-pink-500', 'border-rose-500');
+            } else {
+                toastIcon.innerHTML = `<i class="fa-solid fa-circle-check text-pink-500"></i>`;
+                toast.classList.replace('border-rose-500', 'border-pink-500');
+            }
+
+            toast.classList.remove('translate-y-[-150%]', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-[-150%]', 'opacity-0');
+            }, 3500);
+        }
+
+        function handleCheckout(e) {
+            e.preventDefault();
+
+            if (cartItems.length === 0) {
+                showToast('Cart is Empty', 'Please add items before placing your order.', 'error');
+                return;
+            }
+
+            const firstName = document.getElementById('first-name').value;
+            const lastName = document.getElementById('last-name').value;
+            const city = document.getElementById('city').value;
+            const govSelect = document.getElementById('governorate');
+            const govName = govSelect.options[govSelect.selectedIndex].text;
+
+            const fullName = `${firstName} ${lastName}`;
+            const addressSummary = `${city}, ${govName}`;
+
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin"></i> Processing...`;
+
+            setTimeout(() => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `
+                    <i class="fa-solid fa-bag-shopping"></i>
+                    <span>Complete Order</span>
+                    <span id="btn-total-price" class="text-pink-100 font-normal border-l border-pink-400 pl-2 ml-1">${document.getElementById('desktop-total').innerText} EGP</span>
+                `;
+                triggerSuccessModal(fullName, addressSummary);
+            }, 1500);
+        }
+
+        function triggerSuccessModal(name = 'Valued Customer', address = 'Cairo, Egypt') {
+            const modal = document.getElementById('success-modal');
+            const card = document.getElementById('modal-card');
+
+            document.getElementById('summary-name').innerText = name;
+            document.getElementById('summary-address').innerText = address;
+            document.getElementById('summary-total').innerText = `EGP ${document.getElementById('desktop-total').innerText}`;
+            document.getElementById('order-id').innerText = `#JEJE-${Math.floor(10000 + Math.random() * 90000)}`;
+
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            card.classList.remove('scale-90');
+            card.classList.add('scale-100');
+
+            // Trigger Pink Confetti Explosion
+            if (window.confetti) {
+                confetti({
+                    particleCount: 90,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: ['#f472b6', '#ec4899', '#db2777', '#fecdd3', '#ffffff']
+                });
+            }
+        }
+
+        function resetCheckout() {
+            const modal = document.getElementById('success-modal');
+            const card = document.getElementById('modal-card');
+
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            card.classList.remove('scale-100');
+            card.classList.add('scale-90');
+
+            showToast('Welcome Back!', 'Thank you for shopping with jeje.');
+        }
+    </script>
+</body>
+</html>
